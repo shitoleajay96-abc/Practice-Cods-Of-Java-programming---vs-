@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Scan, Order, Pay</title>
+<style>
+:root{--bg:#f4f5f7;--card:#fff;--ink:#16181d;--mute:#6b7280;--line:#e2e5ea;--acc:#e8590c;--ok:#2f9e44;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14161a;--card:#1f2228;--ink:#eee;--mute:#9aa1ad;--line:#33373f}}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,sans-serif;max-width:480px;margin:0 auto;padding:14px 14px 90px}
+h1{font-size:19px;margin:0}.sub{color:var(--mute);font-size:13px;margin:2px 0 12px}
+.card{background:var(--card);border-radius:12px;padding:12px;margin-bottom:10px}
+.seg{display:flex;gap:8px;margin-bottom:10px}
+.seg button{flex:1;padding:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:10px;font-size:14px}
+.seg button.on{background:var(--acc);border-color:var(--acc);color:#fff}
+.cats{display:flex;gap:6px;overflow-x:auto;margin-bottom:10px}
+.cats button{white-space:nowrap;padding:7px 12px;border-radius:99px;border:1px solid var(--line);background:var(--card);color:var(--ink);font-size:13px}
+.cats button.on{background:var(--ink);color:var(--bg)}
+.it{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.it b{font-size:15px}.it small{color:var(--mute)}
+.add{padding:7px 16px;border:1px solid var(--acc);color:var(--acc);background:transparent;border-radius:8px;font-weight:600}
+.qty{display:flex;align-items:center;gap:10px;background:var(--acc);color:#fff;border-radius:8px;padding:4px 8px}
+.qty button{background:none;border:0;color:#fff;font-size:18px;padding:0 4px}
+.bar{position:fixed;left:0;right:0;bottom:0;padding:10px 14px calc(10px + env(safe-area-inset-bottom,0px));background:var(--card);border-top:1px solid var(--line)}
+.bar div{max-width:480px;margin:0 auto}
+.big{width:100%;padding:13px;border:0;border-radius:10px;background:var(--acc);color:#fff;font-size:16px;font-weight:600}
+.big:disabled{opacity:.4}
+.row{display:flex;justify-content:space-between;padding:4px 0;font-size:14px}
+.tot{font-weight:700;font-size:17px;border-top:1px dashed var(--line);margin-top:6px;padding-top:8px}
+input{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;background:transparent;color:var(--ink);font-size:15px;margin-top:6px}
+.pay{display:block;width:100%;text-align:left;padding:12px;margin-top:8px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);font-size:15px}
+.pay.on{border-color:var(--acc);outline:1px solid var(--acc)}
+.step{display:flex;gap:10px;align-items:center;padding:9px 0;color:var(--mute)}
+.dot{width:22px;height:22px;border-radius:50%;border:2px solid var(--line);flex:none;text-align:center;font-size:12px;line-height:18px}
+.step.done{color:var(--ink)}.step.done .dot{background:var(--ok);border-color:var(--ok);color:#fff}
+.step.now .dot{border-color:var(--acc)}
+.link{background:none;border:0;color:var(--acc);padding:6px 0;font-size:14px}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+var MENU=[
+{c:"Dosa",n:"Mysore Masala Dosa",p:150},{c:"Dosa",n:"Plain Dosa",p:90},{c:"Dosa",n:"Paneer Dosa",p:170},
+{c:"Breads",n:"Butter Roti",p:45},{c:"Breads",n:"Butter Naan",p:60},{c:"Breads",n:"Garlic Naan",p:75},
+{c:"Main",n:"Paneer Butter Masala",p:220},{c:"Main",n:"Dal Tadka",p:160},
+{c:"Drinks",n:"Masala Chaas",p:40},{c:"Drinks",n:"Cold Coffee",p:90}];
+var GST=2.5,PREP=15;
+var S={step:"menu",mode:"dine",table:"T1",cat:"All",cart:{},pay:"upi",name:"",order:null,prog:0,timer:null};
+var $a=document.getElementById("app");
+function sub(){return MENU.reduce(function(s,m,i){return s+(S.cart[i]||0)*m.p},0)}
+function cnt(){var n=0;for(var k in S.cart)n+=S.cart[k];return n}
+function set(k,v){S[k]=v;draw()}
+function q(i,d){S.cart[i]=Math.max(0,(S.cart[i]||0)+d);draw()}
+function draw(){
+  var h="";
+  if(S.step=="menu"){
+    var cats=["All"].concat(MENU.map(function(m){return m.c}).filter(function(c,i,a){return a.indexOf(c)==i}));
+    h+='<h1>Your Restaurant Name</h1><div class="sub">Order from your phone, no counter queue</div>'+
+    '<div class="seg"><button class="'+(S.mode=="dine"?"on":"")+'" onclick="set(\'mode\',\'dine\')">Dine-in</button><button class="'+(S.mode=="parcel"?"on":"")+'" onclick="set(\'mode\',\'parcel\')">Parcel</button></div>'+
+    (S.mode=="dine"?'<div class="card">Table no.<input value="'+S.table+'" oninput="S.table=this.value"></div>':'')+
+    '<div class="cats">'+cats.map(function(c){return '<button class="'+(S.cat==c?"on":"")+'" onclick="set(\'cat\',\''+c+'\')">'+c+'</button>'}).join("")+'</div>';
+    MENU.forEach(function(m,i){
+      if(S.cat!="All"&&m.c!=S.cat)return;
+      var n=S.cart[i]||0;
+      h+='<div class="card it"><div><b>'+m.n+'</b><br><small>Rs '+m.p+'</small></div>'+
+      (n?'<div class="qty"><button onclick="q('+i+',-1)">−</button>'+n+'<button onclick="q('+i+',1)">+</button></div>':'<button class="add" onclick="q('+i+',1)">ADD</button>')+'</div>';
+    });
+    h+='<div class="bar"><div><button class="big" '+(cnt()?'':'disabled')+' onclick="set(\'step\',\'bill\')">'+(cnt()?'View bill · '+cnt()+' items · Rs '+sub():'Select food to continue')+'</button></div></div>';
+  }
+  else if(S.step=="bill"){
+    var s=sub(),t=s*GST/100,tot=Math.round(s+2*t);
+    h+='<button class="link" onclick="set(\'step\',\'menu\')">← Edit order</button><h1>Your bill</h1><div class="sub">'+(S.mode=="dine"?'Dine-in · Table '+S.table:'Parcel')+'</div><div class="card">';
+    MENU.forEach(function(m,i){if(S.cart[i])h+='<div class="row"><span>'+m.n+' × '+S.cart[i]+'</span><span>'+(S.cart[i]*m.p).toFixed(2)+'</span></div>'});
+    h+='<div class="row" style="border-top:1px dashed var(--line);margin-top:6px;padding-top:8px"><span>SubTotal</span><span>'+s.toFixed(2)+'</span></div>'+
+    '<div class="row"><span>SGST '+GST+'%</span><span>'+t.toFixed(2)+'</span></div><div class="row"><span>CGST '+GST+'%</span><span>'+t.toFixed(2)+'</span></div>'+
+    '<div class="row tot"><span>Total</span><span>Rs '+tot+'</span></div></div>'+
+    '<div class="card">Your name<input placeholder="Name" value="'+S.name+'" oninput="S.name=this.value"></div>'+
+    '<div class="card"><b>Pay using</b>'+[["upi","UPI (GPay, PhonePe, Paytm)"],["card","Debit / Credit card"],["net","Net banking"]].map(function(p){return '<button class="pay '+(S.pay==p[0]?"on":"")+'" onclick="set(\'pay\',\''+p[0]+'\')">'+p[1]+'</button>'}).join("")+'</div>'+
+    '<div class="bar"><div><button class="big" onclick="payNow('+tot+')">Pay Rs '+tot+'</button></div></div>';
+  }
+  else{
+    var o=S.order,steps=["Payment received","Kitchen is preparing","Ready"];
+    steps.push(o.mode=="dine"?"Served at Table "+o.table:"Ready for pickup at counter");
+    h+='<h1>Payment successful ✓</h1><div class="sub">Order #'+o.id+' · Rs '+o.total+' paid via '+o.pay.toUpperCase()+'</div><div class="card"><b>'+(S.prog>=3?'Enjoy your meal!':'Arriving in about '+Math.max(1,PREP-S.prog*5)+' min')+'</b>';
+    steps.forEach(function(x,i){h+='<div class="step '+(i<S.prog+1?"done":"")+(i==S.prog+1?" now":"")+'"><span class="dot">'+(i<S.prog+1?"✓":"")+'</span>'+x+'</div>'});
+    h+='</div><div class="card"><small>Demo only: statuses advance automatically every few seconds. In a real app, the kitchen taps the status and the customer sees it live.</small></div><button class="big" onclick="reset()">New order</button>';
+  }
+  $a.innerHTML=h;
+}
+function payNow(total){
+  S.order={id:Math.floor(1000+Math.random()*9000),total:total,pay:S.pay,mode:S.mode,table:S.table};
+  S.prog=0;S.step="done";draw();
+  clearInterval(S.timer);
+  S.timer=setInterval(function(){if(S.prog<3){S.prog++;draw()}else clearInterval(S.timer)},4000);
+}
+function reset(){clearInterval(S.timer);S.cart={};S.step="menu";draw()}
+draw();
+</script>
+</body>
+</html>

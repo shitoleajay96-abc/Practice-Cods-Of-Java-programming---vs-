@@ -1,0 +1,45 @@
+  <label>Table no. / Covers</label>
+  <div class="row"><input id="tno" value="T1"><input id="cov" type="number" value="1"></div>
+  <label>GST % (each of SGST and CGST)</label><input id="gst" type="number" step="0.5" value="2.5">
+  <h2 style="margin-top:14px">Items</h2>
+  <div id="items"></div>
+  <button onclick="add('',1,0)">+ Add item</button>
+  <button onclick="window.print()">Print</button>
+</div>
+
+<div class="bill" id="bill"></div>
+
+<script>
+var billNo=Math.floor(100000+Math.random()*900000);
+var items=[["Item 1",1,150],["Item 2",2,45]];
+var $=function(i){return document.getElementById(i)};
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+function add(n,q,r){items.push([n,q,r]);drawInputs();render()}
+function del(i){items.splice(i,1);drawInputs();render()}
+function upd(i,k,v){items[i][k]=k==0?v:(parseFloat(v)||0);render()}
+function drawInputs(){
+  $("items").innerHTML=items.map(function(it,i){
+    return '<div class="row"><input placeholder="Item" value="'+esc(it[0])+'" oninput="upd('+i+',0,this.value)">'+
+    '<input type="number" placeholder="Qty" value="'+it[1]+'" oninput="upd('+i+',1,this.value)">'+
+    '<input type="number" placeholder="Rate" value="'+it[2]+'" oninput="upd('+i+',2,this.value)">'+
+    '<button class="x" onclick="del('+i+')">×</button></div>'}).join("");
+}
+function f(n){return n.toFixed(2)}
+function render(){
+  var d=new Date(),p=function(x){return String(x).padStart(2,"0")};
+  var h=d.getHours(),ap=h>=12?"PM":"AM";h=h%12||12;
+  var date=p(d.getDate())+"-"+p(d.getMonth()+1)+"-"+d.getFullYear()+" "+p(h)+":"+p(d.getMinutes())+" "+ap;
+  var sub=0,rows="";
+  items.forEach(function(it){var a=it[1]*it[2];sub+=a;
+    rows+="<tr><td>"+esc(it[0])+"</td><td>"+it[1].toFixed(1)+"</td><td>"+it[2].toFixed(1)+"</td><td>"+f(a)+"</td></tr>"});
+  var pct=parseFloat($("gst").value)||0,tax=sub*pct/100,total=sub+2*tax;
+  $("bill").innerHTML=
+  '<div class="c b">TAX INVOICE<br>'+esc($("name").value)+'</div><br>'+
+  '<div class="c">'+esc($("addr").value)+'<br>'+esc($("phone").value)+'<br>'+esc($("gstin").value)+'<br>'+esc($("fssai").value)+'</div><hr>'+
+  '<div class="b">B.No: '+billNo+' &nbsp; T.No: '+esc($("tno").value)+'</div>'+
+  '<div>Date : '+date+' &nbsp; Covers : '+esc($("cov").value)+'</div><div>*Food*</div><hr>'+
+  '<table><tr><th>Item</th><th>Qty</th><th>Rate</th><th>Amount</th></tr></table><hr>'+
+  '<table>'+rows+'</table><hr>'+
+  '<div class="t"><span>SubTotal :</span><span>'+f(sub)+'</span></div>'+
+  '<div class="t"><span>SGST '+pct.toFixed(2)+' % :</span><span>'+f(tax)+'</span></div>'+
+  '<div class="t"><span>CGST '+pct.toFixed(2)+' % :</span><span>'+f(tax)+'</span></div>'+
